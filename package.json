@@ -1,1 +1,16 @@
-{ "name": "internet-cafe-backend", "version": "1.0.0", "description": "Backend for Internet Cafe Management System", "main": "server.js", "scripts": { "test": "echo \"Error: no test specified\" && exit 1 }, "repository": { "type": "git", "url": "https://github.com/ZedDaProgrammer/internet-cafe.git" }, "keywords": [], "author": "ZedDaProgrammer", "license": "MIT" }
+{
+  "name": "internet-cafe-backend",
+  "version": "1.0.0",
+  "description": "Backend for Internet Cafe Management System",
+  "main": "server.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ZedDaProgrammer/internet-cafe.git"
+  },
+  "keywords": [],
+  "author": "ZedDaProgrammer",
+  "license": "MIT"
+}
