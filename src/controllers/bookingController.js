@@ -3,44 +3,33 @@ const pool = require('../config/db');
 // 1. START A BOOKING (Used by Dashboard)
 const startBooking = async (req, res) => {
     try {
-        // ENSURE IDs are Integers
         const computer_id = parseInt(req.body.computer_id);
-        const user_id = parseInt(req.user.id);
-
-        console.log(`Attempting to book PC: ${computer_id} for User: ${user_id}`);
+        const duration_hours = parseInt(req.body.duration_hours) || 1; // Default to 1 hour
+        const user_id = req.user.id;
 
         // 1. Check if PC exists and is available
         const pcCheck = await pool.query('SELECT status FROM computers WHERE id = $1', [computer_id]);
-        
-        if (pcCheck.rows.length === 0) {
-            return res.status(404).json({ error: 'PC not found' });
-        }
-        
-        if (pcCheck.rows[0].status !== 'available') {
-            return res.status(400).json({ error: 'PC is already occupied' });
-        }
+        if (pcCheck.rows.length === 0) return res.status(404).json({ error: 'PC not found' });
+        if (pcCheck.rows[0].status !== 'available') return res.status(400).json({ error: 'PC is occupied' });
 
-        // 2. Create the reservation record FIRST
-        // Explicitly setting status to 'active' just in case the DB default is missing
+        // 2. Create the reservation with calculated end_time
         const newBooking = await pool.query(
-            `INSERT INTO reservations (user_id, computer_id, status, start_time) 
-             VALUES ($1, $2, 'active', CURRENT_TIMESTAMP) 
+            `INSERT INTO reservations (user_id, computer_id, status, start_time, end_time) 
+             VALUES ($1, $2, 'active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP + ($3 || ' hours')::interval) 
              RETURNING *`,
-            [user_id, computer_id]
+            [user_id, computer_id, duration_hours]
         );
 
-        // 3. ONLY THEN update the PC status to 'occupied'
+        // 3. Update PC status
         await pool.query('UPDATE computers SET status = $1 WHERE id = $2', ['occupied', computer_id]);
 
         res.status(201).json({
             message: 'Session started!',
             booking: newBooking.rows[0]
         });
-
     } catch (err) {
-        // This log will show you the REAL error in your VS Code terminal
-        console.error("DATABASE ERROR:", err.message); 
-        res.status(500).json({ error: `Server Error: ${err.message}` });
+        console.error("BACKEND ERROR:", err.message);
+        res.status(500).json({ error: 'Failed to start session' });
     }
 };
 

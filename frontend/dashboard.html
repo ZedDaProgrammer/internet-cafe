@@ -11,7 +11,7 @@
         <h1>CyberCafe Dashboard</h1>
         <div class="user-info">
             <span id="usernameDisplay">Welcome, User</span>
-            <a href="history.html" style="color: #3b82f6; margin: 0 15px; text-decoration: none;">View History</a>
+            <a href="history.html" style="color: #3b82f6; margin: 0 15px; text-decoration: none;">History</a>
             <button id="logoutBtn" class="secondary-btn">Logout</button>
         </div>
     </header>
@@ -19,7 +19,7 @@
     <main class="container">
         <section id="activeSession" class="active-session-banner" style="display: none;">
             <div class="session-info">
-                <h3>⚡ Session Active</h3>
+                <h3>Session Active</h3>
                 <p>PC: <span id="activePcNameDisplay">--</span></p>
                 <p>Time Remaining: <span id="timerDisplay">00:00:00</span></p>
             </div>
@@ -36,9 +36,9 @@
         </div>
     </main>
 
-    <div id="durationModal" class="modal" style="display: none;">
+    <div id="durationModal" class="modal">
         <div class="modal-content">
-            <h3>⏰ Set Session Duration</h3>
+            <h3>Set Session Duration</h3>
             <p>Minimum: 1 Hour | Increment: 1 Hour</p>
             <div class="input-group">
                 <label>Hours to Book</label>
