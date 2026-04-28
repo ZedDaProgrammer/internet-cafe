@@ -5,6 +5,7 @@ const cors = require('cors');
 const pool = require('./src/config/db');
 const authRoutes = require('./src/routes/authRoute');
 const computerRoutes = require('./src/routes/computerRoute');
+const bookingRoutes = require('./src/routes/bookingRoute');
 
 const app = express();
 
@@ -13,6 +14,7 @@ app.use(cors());
 app.use(express.json());
 app.use('/api/computers', computerRoutes);
 app.use('/api/auth', authRoutes);
+app.use('/api/bookings', bookingRoutes);
 
 //route
 app.get('/', (req, res) => {
