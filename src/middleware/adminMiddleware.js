@@ -19,4 +19,13 @@ const adminMiddleware = (req, res, next) => {
     }
 };
 
-module.exports = adminMiddleware;
+const isAdmin = (req, res, next) => {
+    // req.user was set by the first verifyToken middleware
+    if (req.user && req.user.role === 'admin') {
+        next();
+    } else {
+        return res.status(403).json({ error: 'Access denied. Admins only.' });
+    }
+};
+
+module.exports = adminMiddleware, isAdmin;

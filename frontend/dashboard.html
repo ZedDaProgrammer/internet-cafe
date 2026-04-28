@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fucking niggers | Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header class="dashboard-header">
+        <h1>CyberCafe Dashboard</h1>
+        <div class="user-info">
+            <span id="usernameDisplay">Welcome, User</span>
+            <a href="history.html" style="color: #3b82f6; margin: 0 15px; text-decoration: none;">View History</a>
+            <button id="logoutBtn" class="secondary-btn">Logout</button>
+        </div>
+    </header>
+
+    <main class="container">
+        <section class="status-summary">
+            <h3>Available Computers</h3>
+            <p>Click a PC to start your session.</p>
+        </section>
+
+        <section id="activeSession" class="active-session-banner" style="display: none;">
+    <div class="session-info">
+        <h3>You are currently in a session!</h3>
+        <p>PC: <span id="activePcName">--</span></p>
+        <p>Started: <span id="startTimeDisplay">--:--</span></p>
+    </div>
+    <button id="endSessionBtn" class="danger-btn">End Session & Pay</button>
+</section>
+
+        <div id="pcGrid" class="pc-grid">
+            <p>Loading computers...</p>
+        </div>
+    </main>
+
+    <script src="dashboard.js"></script>
+</body>
+</html>

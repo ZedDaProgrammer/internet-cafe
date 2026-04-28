@@ -1,213 +1,143 @@
 const pool = require('../config/db');
 
-// Create a new booking/reservation
-const createBooking = async (req, res) => {
+// 1. START A BOOKING (Used by Dashboard)
+const startBooking = async (req, res) => {
     try {
-        const { computer_id, end_time } = req.body;
-        const user_id = req.user.id; // From JWT token middleware
+        // ENSURE IDs are Integers
+        const computer_id = parseInt(req.body.computer_id);
+        const user_id = parseInt(req.user.id);
 
-        // Check if computer exists and is available
-        const computerResult = await pool.query(
-            'SELECT * FROM computers WHERE id = $1',
-            [computer_id]
-        );
+        console.log(`Attempting to book PC: ${computer_id} for User: ${user_id}`);
 
-        if (computerResult.rows.length === 0) {
-            return res.status(404).json({ error: 'Computer not found.' });
+        // 1. Check if PC exists and is available
+        const pcCheck = await pool.query('SELECT status FROM computers WHERE id = $1', [computer_id]);
+        
+        if (pcCheck.rows.length === 0) {
+            return res.status(404).json({ error: 'PC not found' });
+        }
+        
+        if (pcCheck.rows[0].status !== 'available') {
+            return res.status(400).json({ error: 'PC is already occupied' });
         }
 
-        const computer = computerResult.rows[0];
-
-        // Check if computer is already booked
-        const existingBooking = await pool.query(
-            'SELECT * FROM reservations WHERE computer_id = $1 AND status = $2',
-            [computer_id, 'active']
-        );
-
-        if (existingBooking.rows.length > 0) {
-            return res.status(400).json({ error: 'Computer is already booked.' });
-        }
-
-        // Calculate total price
-        const startTime = new Date();
-        const endTimeDate = new Date(end_time);
-        const hours = (endTimeDate - startTime) / (1000 * 60 * 60);
-        const total_price = hours * computer.hourly_rate;
-
-        // Create reservation
+        // 2. Create the reservation record FIRST
+        // Explicitly setting status to 'active' just in case the DB default is missing
         const newBooking = await pool.query(
-            `INSERT INTO reservations (user_id, computer_id, end_time, total_price, status)
-            VALUES ($1, $2, $3, $4, 'active')
-            RETURNING *`,
-            [user_id, computer_id, end_time, total_price]
+            `INSERT INTO reservations (user_id, computer_id, status, start_time) 
+             VALUES ($1, $2, 'active', CURRENT_TIMESTAMP) 
+             RETURNING *`,
+            [user_id, computer_id]
         );
+
+        // 3. ONLY THEN update the PC status to 'occupied'
+        await pool.query('UPDATE computers SET status = $1 WHERE id = $2', ['occupied', computer_id]);
 
         res.status(201).json({
-            message: 'Booking created successfully!',
+            message: 'Session started!',
             booking: newBooking.rows[0]
         });
+
     } catch (err) {
-        console.error(err.message);
-        res.status(500).json({ error: 'Server error while creating booking.' });
+        // This log will show you the REAL error in your VS Code terminal
+        console.error("DATABASE ERROR:", err.message); 
+        res.status(500).json({ error: `Server Error: ${err.message}` });
     }
 };
 
-// Get all bookings for the logged-in user
-const getUserBookings = async (req, res) => {
+// 2. END A BOOKING
+const endBooking = async (req, res) => {
+    try {
+        const reservation_id = parseInt(req.body.reservation_id);
+
+        const bookingData = await pool.query(
+            `SELECT r.*, c.hourly_rate, c.id as pc_id 
+             FROM reservations r 
+             JOIN computers c ON r.computer_id = c.id 
+             WHERE r.id = $1 AND r.status = 'active'`,
+            [reservation_id]
+        );
+
+        if (bookingData.rows.length === 0) {
+            return res.status(404).json({ error: 'Active booking not found' });
+        }
+
+        const booking = bookingData.rows[0];
+        const endTime = new Date();
+        const startTime = new Date(booking.start_time);
+        
+        // Calculate price
+        const diffInMs = endTime - startTime;
+        const hours = Math.max(0.25, diffInMs / (1000 * 60 * 60)); 
+        const totalPrice = (hours * booking.hourly_rate).toFixed(2);
+
+        // Update Reservation to completed
+        await pool.query(
+            'UPDATE reservations SET end_time = $1, total_price = $2, status = $3 WHERE id = $4',
+            [endTime, totalPrice, 'completed', reservation_id]
+        );
+
+        // Make PC available again
+        await pool.query('UPDATE computers SET status = $1 WHERE id = $2', ['available', booking.pc_id]);
+
+        res.json({
+            message: 'Session ended!',
+            total_time: `${hours.toFixed(2)} hours`,
+            total_price: `₱${totalPrice}`
+        });
+    } catch (err) {
+        console.error("END BOOKING ERROR:", err.message);
+        res.status(500).json({ error: err.message });
+    }
+};
+
+// 3. GET USER HISTORY (For history.html)
+const getMyHistory = async (req, res) => {
     try {
         const user_id = req.user.id;
-
-        const bookings = await pool.query(
-            `SELECT r.*, c.computer_name, c.hourly_rate, u.username, u.email
-            FROM reservations r
-            JOIN computers c ON r.computer_id = c.id
-            JOIN users u ON r.user_id = u.id
-            WHERE r.user_id = $1
-            ORDER BY r.start_time DESC`,
+        const history = await pool.query(
+            `SELECT r.*, c.computer_name 
+             FROM reservations r 
+             JOIN computers c ON r.computer_id = c.id 
+             WHERE r.user_id = $1 
+             ORDER BY r.start_time DESC`, 
             [user_id]
         );
-
-        res.json({
-            message: 'User bookings retrieved successfully!',
-            bookings: bookings.rows
-        });
+        res.json(history.rows);
     } catch (err) {
         console.error(err.message);
-        res.status(500).json({ error: 'Server error while fetching bookings.' });
+        res.status(500).json({ error: 'Failed to fetch history' });
     }
 };
 
-// Get user's monthly spending history
-const getUserMonthlyHistory = async (req, res) => {
-    try {
-        const user_id = req.user.id;
-
-        // Get current month and year
-        const now = new Date();
-        const currentMonth = now.getMonth() + 1;
-        const currentYear = now.getFullYear();
-        const monthName = now.toLocaleString('default', { month: 'long', year: 'numeric' });
-
-        // Get all bookings for the current month
-        const monthlyBookings = await pool.query(
-            `SELECT r.*, c.computer_name, c.hourly_rate, u.username
-            FROM reservations r
-            JOIN computers c ON r.computer_id = c.id
-            JOIN users u ON r.user_id = u.id
-            WHERE r.user_id = $1 
-            AND EXTRACT(MONTH FROM r.start_time) = $2
-            AND EXTRACT(YEAR FROM r.start_time) = $3
-            ORDER BY r.start_time DESC`,
-            [user_id, currentMonth, currentYear]
-        );
-
-        // Calculate total spent this month
-        const totalResult = await pool.query(
-            `SELECT COALESCE(SUM(total_price), 0) as total_spent
-            FROM reservations
-            WHERE user_id = $1
-            AND EXTRACT(MONTH FROM start_time) = $2
-            AND EXTRACT(YEAR FROM start_time) = $3`,
-            [user_id, currentMonth, currentYear]
-        );
-
-        const totalSpent = totalResult.rows[0].total_spent;
-
-        res.json({
-            message: 'Monthly spending history retrieved successfully!',
-            month: monthName,
-            total_spent_this_month: parseFloat(totalSpent).toFixed(2),
-            booking_count: monthlyBookings.rows.length,
-            bookings: monthlyBookings.rows
-        });
-    } catch (err) {
-        console.error(err.message);
-        res.status(500).json({ error: 'Server error while fetching monthly history.' });
-    }
-};
-
-// Get admin statistics
+// 4. GET ADMIN STATISTICS (For admin.html)
 const getAdminStats = async (req, res) => {
     try {
-        // Get today's date range
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         const tomorrow = new Date(today);
         tomorrow.setDate(tomorrow.getDate() + 1);
 
-        // Get total earnings for today
         const earningsResult = await pool.query(
             `SELECT COALESCE(SUM(total_price), 0) as total_earnings
-            FROM reservations
-            WHERE status = 'completed'
-            AND start_time >= $1
-            AND start_time < $2`,
+             FROM reservations
+             WHERE status = 'completed' AND start_time >= $1 AND start_time < $2`,
             [today, tomorrow]
         );
 
-        const totalEarningsToday = earningsResult.rows[0].total_earnings;
-
-        // Get total bookings for today
-        const bookingCountResult = await pool.query(
-            `SELECT COUNT(*) as total_bookings
-            FROM reservations
-            WHERE start_time >= $1
-            AND start_time < $2`,
-            [today, tomorrow]
-        );
-
-        const totalBookingsToday = bookingCountResult.rows[0].total_bookings;
-
-        // Get most popular computers (top 5) by booking count
         const mostPopularResult = await pool.query(
-            `SELECT c.id, c.computer_name, COUNT(r.id) as booking_count, 
-                    COALESCE(SUM(r.total_price), 0) as pc_earnings
-            FROM computers c
-            LEFT JOIN reservations r ON c.id = r.computer_id
-            AND r.start_time >= $1
-            AND r.start_time < $2
-            GROUP BY c.id, c.computer_name
-            ORDER BY booking_count DESC
-            LIMIT 5`,
+            `SELECT c.computer_name, COUNT(r.id) as booking_count
+             FROM computers c
+             LEFT JOIN reservations r ON c.id = r.computer_id
+             WHERE r.start_time >= $1 AND r.start_time < $2
+             GROUP BY c.id, c.computer_name
+             ORDER BY booking_count DESC LIMIT 5`,
             [today, tomorrow]
         );
-
-        // Get top 5 spending users for today
-        const topSpendingResult = await pool.query(
-            `SELECT u.id, u.username, u.email, COUNT(r.id) as booking_count,
-                    COALESCE(SUM(r.total_price), 0) as user_spending
-            FROM users u
-            LEFT JOIN reservations r ON u.id = r.user_id
-            AND r.start_time >= $1
-            AND r.start_time < $2
-            GROUP BY u.id, u.username, u.email
-            HAVING COUNT(r.id) > 0
-            ORDER BY user_spending DESC
-            LIMIT 5`,
-            [today, tomorrow]
-        );
-
-        const formattedDate = today.toISOString().split('T')[0];
 
         res.json({
-            message: 'Admin statistics retrieved successfully!',
-            date: formattedDate,
-            summary: {
-                total_earnings_today: parseFloat(totalEarningsToday).toFixed(2),
-                total_bookings_today: parseInt(totalBookingsToday),
-                currency: 'PHP'
-            },
-            most_popular_pcs: mostPopularResult.rows.map(pc => ({
-                computer_name: pc.computer_name,
-                booking_count: pc.booking_count,
-                pc_earnings: parseFloat(pc.pc_earnings).toFixed(2)
-            })),
-            top_spending_users: topSpendingResult.rows.map(user => ({
-                username: user.username,
-                email: user.email,
-                booking_count: user.booking_count,
-                user_spending: parseFloat(user.user_spending).toFixed(2)
-            }))
+            date: today.toISOString().split('T')[0],
+            total_earnings_today: parseFloat(earningsResult.rows[0].total_earnings).toFixed(2),
+            most_popular_pcs: mostPopularResult.rows
         });
     } catch (err) {
         console.error(err.message);
@@ -215,187 +145,112 @@ const getAdminStats = async (req, res) => {
     }
 };
 
-// Get all bookings (admin only)
-const getAllBookings = async (req, res) => {
+// --- ADDITIONAL CRUD FUNCTIONS ---
+
+const createBooking = async (req, res) => {
     try {
-        const bookings = await pool.query(
-            `SELECT r.*, c.computer_name, c.hourly_rate, u.username, u.email
-            FROM reservations r
-            JOIN computers c ON r.computer_id = c.id
-            JOIN users u ON r.user_id = u.id
-            ORDER BY r.start_time DESC`
-        );
-
-        res.json({
-            message: 'All bookings retrieved successfully!',
-            bookings: bookings.rows
-        });
-    } catch (err) {
-        console.error(err.message);
-        res.status(500).json({ error: 'Server error while fetching bookings.' });
-    }
-};
-
-// Get booking by ID
-const getBookingById = async (req, res) => {
-    try {
-        const { id } = req.params;
-
-        const booking = await pool.query(
-            `SELECT r.*, c.computer_name, c.hourly_rate, u.username, u.email
-            FROM reservations r
-            JOIN computers c ON r.computer_id = c.id
-            JOIN users u ON r.user_id = u.id
-            WHERE r.id = $1`,
-            [id]
-        );
-
-        if (booking.rows.length === 0) {
-            return res.status(404).json({ error: 'Booking not found.' });
-        }
-
-        res.json({
-            message: 'Booking retrieved successfully!',
-            booking: booking.rows[0]
-        });
-    } catch (err) {
-        console.error(err.message);
-        res.status(500).json({ error: 'Server error while fetching booking.' });
-    }
-};
-
-// Complete a booking
-const completeBooking = async (req, res) => {
-    try {
-        const { id } = req.params;
-
-        const booking = await pool.query(
-            'SELECT * FROM reservations WHERE id = $1',
-            [id]
-        );
-
-        if (booking.rows.length === 0) {
-            return res.status(404).json({ error: 'Booking not found.' });
-        }
-
-        // Update booking status to completed
-        const completedBooking = await pool.query(
-            `UPDATE reservations 
-            SET status = 'completed' 
-            WHERE id = $1 
-            RETURNING *`,
-            [id]
-        );
-
-        res.json({
-            message: 'Booking completed successfully!',
-            booking: completedBooking.rows[0]
-        });
-    } catch (err) {
-        console.error(err.message);
-        res.status(500).json({ error: 'Server error while completing booking.' });
-    }
-};
-
-// Cancel a booking
-const cancelBooking = async (req, res) => {
-    try {
-        const { id } = req.params;
+        const { computer_id, end_time } = req.body;
         const user_id = req.user.id;
-
-        const booking = await pool.query(
-            'SELECT * FROM reservations WHERE id = $1',
-            [id]
-        );
-
-        if (booking.rows.length === 0) {
-            return res.status(404).json({ error: 'Booking not found.' });
-        }
-
-        // Check if user is the owner or admin
-        if (booking.rows[0].user_id !== user_id && req.user.role !== 'admin') {
-            return res.status(403).json({ error: 'You do not have permission to cancel this booking.' });
-        }
-
-        // Update booking status to cancelled
-        const cancelledBooking = await pool.query(
-            `UPDATE reservations 
-            SET status = 'cancelled' 
-            WHERE id = $1 
-            RETURNING *`,
-            [id]
-        );
-
-        res.json({
-            message: 'Booking cancelled successfully!',
-            booking: cancelledBooking.rows[0]
-        });
-    } catch (err) {
-        console.error(err.message);
-        res.status(500).json({ error: 'Server error while cancelling booking.' });
-    }
-};
-
-// Update booking end time
-const updateBooking = async (req, res) => {
-    try {
-        const { id } = req.params;
-        const { end_time } = req.body;
-        const user_id = req.user.id;
-
-        const booking = await pool.query(
-            'SELECT * FROM reservations WHERE id = $1',
-            [id]
-        );
-
-        if (booking.rows.length === 0) {
-            return res.status(404).json({ error: 'Booking not found.' });
-        }
-
-        // Check if user is the owner or admin
-        if (booking.rows[0].user_id !== user_id && req.user.role !== 'admin') {
-            return res.status(403).json({ error: 'You do not have permission to update this booking.' });
-        }
-
-        // Get computer to calculate new price
-        const computerResult = await pool.query(
-            'SELECT hourly_rate FROM computers WHERE id = $1',
-            [booking.rows[0].computer_id]
-        );
+        const computerResult = await pool.query('SELECT * FROM computers WHERE id = $1', [computer_id]);
+        if (computerResult.rows.length === 0) return res.status(404).json({ error: 'Computer not found.' });
 
         const computer = computerResult.rows[0];
-        const startTime = new Date(booking.rows[0].start_time);
+        const startTime = new Date();
         const endTimeDate = new Date(end_time);
         const hours = (endTimeDate - startTime) / (1000 * 60 * 60);
         const total_price = hours * computer.hourly_rate;
 
-        // Update booking
-        const updatedBooking = await pool.query(
-            `UPDATE reservations 
-            SET end_time = $1, total_price = $2
-            WHERE id = $3 
-            RETURNING *`,
-            [end_time, total_price, id]
+        const newBooking = await pool.query(
+            `INSERT INTO reservations (user_id, computer_id, end_time, total_price, status)
+            VALUES ($1, $2, $3, $4, 'active') RETURNING *`,
+            [user_id, computer_id, end_time, total_price]
         );
-
-        res.json({
-            message: 'Booking updated successfully!',
-            booking: updatedBooking.rows[0]
-        });
+        res.status(201).json({ message: 'Booking created!', booking: newBooking.rows[0] });
     } catch (err) {
-        console.error(err.message);
-        res.status(500).json({ error: 'Server error while updating booking.' });
+        res.status(500).json({ error: 'Server error' });
     }
 };
 
+const getUserBookings = async (req, res) => {
+    try {
+        const user_id = req.user.id;
+        const bookings = await pool.query(
+            `SELECT r.*, c.computer_name FROM reservations r 
+             JOIN computers c ON r.computer_id = c.id WHERE r.user_id = $1`, [user_id]
+        );
+        res.json({ bookings: bookings.rows });
+    } catch (err) { res.status(500).json({ error: 'Server error' }); }
+};
+
+const getAllBookings = async (req, res) => {
+    try {
+        const bookings = await pool.query(`SELECT r.*, c.computer_name, u.username FROM reservations r 
+                                           JOIN computers c ON r.computer_id = c.id 
+                                           JOIN users u ON r.user_id = u.id ORDER BY r.start_time DESC`);
+        res.json({ bookings: bookings.rows });
+    } catch (err) { res.status(500).json({ error: 'Server error' }); }
+};
+
+const getBookingById = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const booking = await pool.query('SELECT * FROM reservations WHERE id = $1', [id]);
+        if (booking.rows.length === 0) return res.status(404).json({ error: 'Not found' });
+        res.json({ booking: booking.rows[0] });
+    } catch (err) { res.status(500).json({ error: 'Server error' }); }
+};
+
+const completeBooking = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const result = await pool.query("UPDATE reservations SET status = 'completed' WHERE id = $1 RETURNING *", [id]);
+        res.json({ booking: result.rows[0] });
+    } catch (err) { res.status(500).json({ error: 'Server error' }); }
+};
+
+const cancelBooking = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const result = await pool.query("UPDATE reservations SET status = 'cancelled' WHERE id = $1 RETURNING *", [id]);
+        res.json({ booking: result.rows[0] });
+    } catch (err) { res.status(500).json({ error: 'Server error' }); }
+};
+
+const updateBooking = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { end_time } = req.body;
+        const result = await pool.query("UPDATE reservations SET end_time = $1 WHERE id = $2 RETURNING *", [end_time, id]);
+        res.json({ booking: result.rows[0] });
+    } catch (err) { res.status(500).json({ error: 'Server error' }); }
+};
+
+const getUserMonthlyHistory = async (req, res) => {
+    try {
+        const user_id = req.user.id;
+        const now = new Date();
+        const month = now.getMonth() + 1;
+        const year = now.getFullYear();
+        const result = await pool.query(
+            `SELECT * FROM reservations WHERE user_id = $1 
+             AND EXTRACT(MONTH FROM start_time) = $2 AND EXTRACT(YEAR FROM start_time) = $3`,
+            [user_id, month, year]
+        );
+        res.json({ bookings: result.rows });
+    } catch (err) { res.status(500).json({ error: 'Server error' }); }
+};
+
 module.exports = {
+    startBooking,
+    endBooking,
+    getMyHistory,
+    getAdminStats,
     createBooking,
     getUserBookings,
-    getUserMonthlyHistory,
     getAllBookings,
     getBookingById,
     completeBooking,
     cancelBooking,
     updateBooking,
-    getAdminStats
+    getUserMonthlyHistory
 };

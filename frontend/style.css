@@ -1,0 +1,161 @@
+/* --- GLOBAL STYLES --- */
+* {
+    box-sizing: border-box;
+    font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+}
+
+body {
+    background-color: #0f172a;
+    color: white;
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column; /* Stacks header and content */
+}
+
+/* --- THE CENTERING FIX --- 
+   This centers your Login/Register cards perfectly 
+   without messing up your Dashboard header. */
+body:not(:has(.dashboard-header)) {
+    justify-content: center;
+    align-items: center;
+}
+
+.login-container {
+    background: #1e293b;
+    padding: 2.5rem;
+    border-radius: 12px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+    width: 100%;
+    max-width: 400px;
+    border-top: 4px solid #3b82f6;
+    animation: fadeIn 0.5s ease-in-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* --- FORM ELEMENTS --- */
+h2 { margin-bottom: 0.5rem; text-align: center; color: #f8fafc; font-size: 1.8rem; }
+p.subtitle { color: #94a3b8; font-size: 0.9rem; text-align: center; margin-bottom: 2rem; }
+
+.input-group { margin-bottom: 1.5rem; text-align: left; }
+label { display: block; margin-bottom: 0.5rem; font-size: 0.85rem; color: #cbd5e1; }
+
+input {
+    width: 100%;
+    padding: 0.75rem;
+    background: #0f172a;
+    border: 1px solid #334155;
+    border-radius: 6px;
+    color: white;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+input:focus { border-color: #3b82f6; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2); }
+
+button {
+    width: 100%;
+    padding: 0.75rem;
+    background: #3b82f6;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+button:hover { background: #2563eb; transform: translateY(-1px); }
+button:active { transform: translateY(0); }
+
+.footer-text { margin-top: 1.5rem; font-size: 0.85rem; text-align: center; color: #94a3b8; }
+a { color: #3b82f6; text-decoration: none; font-weight: 500; }
+a:hover { text-decoration: underline; }
+
+/* --- DASHBOARD HEADER --- */
+.dashboard-header {
+    background: #1e293b;
+    padding: 1rem 5%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 2px solid #334155;
+    width: 100%;
+    z-index: 1000;
+}
+
+.dashboard-header h1 { font-size: 1.4rem; margin: 0; color: #f8fafc; }
+
+.user-info { display: flex; align-items: center; gap: 20px; }
+
+/* --- MAIN LAYOUT CONTAINER --- */
+.container { 
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem; 
+}
+
+/* --- PC GRID SYSTEM --- */
+.pc-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 2rem;
+    margin-top: 2rem;
+}
+
+.pc-card {
+    background: #1e293b;
+    border-radius: 12px;
+    padding: 2rem;
+    text-align: center;
+    border: 1px solid #334155;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+}
+
+.pc-card:hover {
+    transform: translateY(-8px);
+    border-color: #3b82f6;
+    box-shadow: 0 12px 20px rgba(0,0,0,0.4);
+}
+
+.pc-card.available { border-top: 6px solid #22c55e; }
+.pc-card.occupied { border-top: 6px solid #ef4444; opacity: 0.7; cursor: not-allowed; }
+
+.pc-card h3 { margin: 0 0 1rem 0; font-size: 1.4rem; color: #f1f5f9; }
+.pc-card p { font-size: 0.9rem; margin: 0.4rem 0; color: #94a3b8; }
+
+/* --- SESSION BANNER --- */
+.active-session-banner {
+    background: linear-gradient(90deg, #1e3a8a, #3b82f6);
+    padding: 1.5rem 2rem;
+    border-radius: 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2.5rem;
+    border: 1px solid #60a5fa;
+}
+
+/* --- BUTTONS & BADGES --- */
+.secondary-btn { background: #334155; padding: 0.6rem 1.2rem; font-size: 0.85rem; width: auto; }
+.danger-btn { background: #ef4444; color: white; padding: 0.8rem 1.5rem; border-radius: 8px; width: auto; }
+
+.status-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.7rem;
+    font-weight: bold;
+    text-transform: uppercase;
+    background: #0f172a;
+    color: #94a3b8;
+    border: 1px solid #334155;
+    margin-top: 10px;
+}

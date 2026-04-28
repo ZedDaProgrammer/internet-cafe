@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CyberCafe | Login</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="login-container">
+        <form id="loginForm" class="login-form">
+            <h2>Login</h2>
+            <p>Enter your credentials to start your session</p>
+            
+            <div class="input-group">
+                <label>Email</label>
+                <input type="email" id="email" placeholder="student@cvsu.edu.ph" required>
+            </div>
+
+            <div class="input-group">
+                <label>Password</label>
+                <input type="password" id="password" placeholder="••••••••" required>
+            </div>
+
+            <button type="submit" id="loginBtn">Login to PC</button>
+            <p class="footer-text">Don't have an account? <a href="register.html">Register here</a></p>
+        </form>
+    </div>
+
+    <script src="auth.js"></script>
+</body>
+</html>

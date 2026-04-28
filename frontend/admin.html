@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>CyberCafe | Admin Panel</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header class="dashboard-header">
+        <h1>🛠️ Admin Management</h1>
+        <a href="dashboard.html" class="secondary-btn">Back to Dashboard</a>
+    </header>
+
+    <main class="container">
+        <section class="admin-section">
+            <h3>➕ Add New Computer</h3>
+            <form id="addPcForm" class="admin-form">
+                <input type="text" id="pcName" placeholder="PC Name (e.g. PC-05)" required>
+                <input type="text" id="pcSpecs" placeholder="Specs (e.g. RTX 3060)" required>
+                <input type="number" id="pcRate" placeholder="Hourly Rate" value="20" required>
+                <button type="submit">Add to System</button>
+            </form>
+        </section>
+
+        <section class="admin-section" style="margin-top: 3rem;">
+            <h3>📊 Recent Activity (All Users)</h3>
+            <div class="history-table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>User ID</th>
+                            <th>PC</th>
+                            <th>Cost</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="adminHistoryBody"></tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+    <script src="admin.js"></script>
+</body>
+</html>
