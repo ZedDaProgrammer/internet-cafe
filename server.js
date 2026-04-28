@@ -4,13 +4,14 @@ const express = require('express');
 const cors = require('cors');
 const pool = require('./src/config/db');
 const authRoutes = require('./src/routes/authRoute');
+const computerRoutes = require('./src/routes/computerRoute');
 
 const app = express();
 
 //middleware or translators
 app.use(cors());
 app.use(express.json());
-
+app.use('/api/computers', computerRoutes);
 app.use('/api/auth', authRoutes);
 
 //route
