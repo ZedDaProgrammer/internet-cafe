@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Fucking niggers | Dashboard</title>
+    <title>CyberCafe | Dashboard</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -17,24 +17,39 @@
     </header>
 
     <main class="container">
-        <section class="status-summary">
-            <h3>Available Computers</h3>
-            <p>Click a PC to start your session.</p>
+        <section id="activeSession" class="active-session-banner" style="display: none;">
+            <div class="session-info">
+                <h3>⚡ Session Active</h3>
+                <p>PC: <span id="activePcNameDisplay">--</span></p>
+                <p>Time Remaining: <span id="timerDisplay">00:00:00</span></p>
+            </div>
+            <button id="endSessionBtn" class="danger-btn">End Session</button>
         </section>
 
-        <section id="activeSession" class="active-session-banner" style="display: none;">
-    <div class="session-info">
-        <h3>You are currently in a session!</h3>
-        <p>PC: <span id="activePcName">--</span></p>
-        <p>Started: <span id="startTimeDisplay">--:--</span></p>
-    </div>
-    <button id="endSessionBtn" class="danger-btn">End Session & Pay</button>
-</section>
+        <section class="status-summary">
+            <h3>Available Computers</h3>
+            <p>Select a PC to start your session.</p>
+        </section>
 
         <div id="pcGrid" class="pc-grid">
-            <p>Loading computers...</p>
+            <p class="loading-text">Loading computers...</p>
         </div>
     </main>
+
+    <div id="durationModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <h3>⏰ Set Session Duration</h3>
+            <p>Minimum: 1 Hour | Increment: 1 Hour</p>
+            <div class="input-group">
+                <label>Hours to Book</label>
+                <input type="number" id="durationInput" value="1" min="1" step="1">
+            </div>
+            <div class="modal-actions">
+                <button id="confirmBookingBtn">Start Session</button>
+                <button id="closeModalBtn" class="secondary-btn">Cancel</button>
+            </div>
+        </div>
+    </div>
 
     <script src="dashboard.js"></script>
 </body>
